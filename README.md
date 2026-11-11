@@ -1,6 +1,6 @@
 # FlowAqua Dashboard
 
-Dashboard Next.js App Router + TypeScript untuk pemantauan suhu dan TDS air perawatan kepiting. UI Bahasa Indonesia, responsif desktop/mobile, grafik suhu/TDS, riwayat pembacaan, dan ekspor CSV. Backend tidak diubah.
+Dashboard Next.js App Router + TypeScript untuk pemantauan suhu dan TDS air perawatan kepiting. UI Bahasa Indonesia, responsif desktop/mobile, grafik suhu/TDS, prediksi ML aktif dan riwayatnya, riwayat pembacaan, dan ekspor CSV.
 
 ## Development
 
@@ -35,6 +35,10 @@ Tidak memerlukan `vercel.json`, WebSocket, koneksi database frontend, atau penga
 - Request pertama langsung saat halaman dibuka, kemudian HTTP polling setiap **3.000 ms**. Timer tab background dapat ditunda oleh browser.
 - Jika request sebelumnya belum selesai, tick tersebut dilewati agar request tidak menumpuk. Timeout upstream 8 detik, timeout browser 10 detik. Unmount membatalkan request aktif.
 - Semua fetch dan respons proxy menggunakan `no-store`. Data berasal dari `GET /readings?limit=100`, divalidasi dengan Zod, lalu diurutkan terbaru dahulu.
+- Proxy `/api/prediction/current` dan `/api/prediction/history` mengambil endpoint publik backend `/prediction/current` dan `/prediction/history`, tanpa memakai endpoint perangkat `/prediction/latest`. Respons divalidasi dan dipoll secara independen setiap 3 detik dengan timeout yang sama.
+- Prediksi aktif menampilkan TDS, interval target, dan ID siklus hanya ketika status `available`; status `unavailable` ditampilkan sebagai belum ada prediksi aktif. Riwayat terpisah memuat hingga 100 prediksi berhasil terbaru. Waktu target menggunakan zona waktu browser.
+- Section ML menggunakan kartu nilai TDS utama, badge ketersediaan, interval target, dan panel penjelasan model. Riwayat menggabungkan awal/akhir target dalam satu kolom dengan penanda hasil terbaru; layout dua kolom berubah menjadi satu kolom di layar kecil.
+- Gangguan tiap layanan prediksi ditampilkan secara terpisah; data terakhir dipertahankan dengan peringatan bahwa status dapat berubah.
 - Grafik memakai maksimal 100 pembacaan terbaru dengan posisi berdasarkan timestamp; bukan histori lengkap atau jendela waktu tetap. Tabel menampilkan 10 data terbaru. CSV mengekspor seluruh data yang sedang dimuat.
 - Waktu ditampilkan dalam zona waktu browser. `recordedAt` adalah waktu penerimaan backend, bukan timestamp pengukuran ESP32.
 - Lebih dari 60 detik tanpa pembacaan baru ditandai **Data belum terbaru**. Ini indikator kesegaran, bukan ambang biologis.
@@ -57,6 +61,9 @@ Smoke browser yang dilakukan: data backend nyata, interval request sekitar 3 det
 - `src/app/page.tsx`: dashboard, siklus polling, grafik, tabel, ekspor.
 - `src/app/globals.css`: desain responsif.
 - `src/app/api/readings/route.ts`: proxy server-only tanpa cache.
+- `src/app/predictions.tsx`: polling dan tampilan prediksi aktif serta riwayat.
+- `src/app/api/prediction/`: proxy endpoint prediksi publik; `src/lib/prediction-proxy.ts` menangani akses backend.
+- `src/lib/predictions.ts`: kontrak dan validasi prediksi.
 - `src/lib/readings.ts`: kontrak dan validasi data sensor.
 
 Dashboard dan endpoint GET belum memakai autentikasi; siapa pun yang memiliki URL dashboard dapat membaca data. Backend masih bertanggung jawab atas proteksi endpoint penulisan sensor.
